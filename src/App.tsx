@@ -61,6 +61,25 @@ const AI_STRATEGY_TIPS = [
 // Patch Notes 데이터
 const PATCH_NOTES = [
   {
+    version: "v2.8.0",
+    date: "2026-04-24",
+    changes: [
+      "현명한 투자를 위한 '투자 성향(Risk Profile)' 설정 추가",
+      "투자 목적(Growth/Dividend/Value) 맞춤형 분석 로직 도입",
+      "Macro Engine 4.0 거시 경제 지표 가중치 엔진 탑재",
+      "AI 프롬프트 고도화: 성향별 매수 비중 및 손절 가이드 제공"
+    ]
+  },
+  {
+    version: "v2.7.0",
+    date: "2026-04-24",
+    changes: [
+      "특정 종목 분석 기능 추가 (상세 분석 모드)",
+      "분석 버튼 명칭 변경 및 UI 가공",
+      "AI 리서치 프롬프트 엔진 고도화"
+    ]
+  },
+  {
     version: "v2.6.0",
     date: "2026-04-24",
     changes: [
@@ -138,9 +157,9 @@ const PATCH_NOTES = [
 const USAGE_STEPS = [
   { id: 1, text: "우측 상단 API 상태 버튼을 눌러 API 키가 적용되었는지 확인하세요." },
   { id: 2, text: "분석할 주식 시장(국내/미국)을 선택하세요." },
-  { id: 3, text: "전망이 궁금한 주식 테마/섹터를 드롭다운에서 선택하세요." },
+  { id: 3, text: "전망이 궁금한 주식 테마/섹터를 드롭다운에서 선택하거나 특정 종목명을 입력하세요." },
   { id: 4, text: "원하시는 매도 시기(년도 및 월)를 설정하세요." },
-  { id: 5, text: "'오늘의 추천주 분석 시작' 버튼을 눌러 AI 스캔을 시작하세요." },
+  { id: 5, text: "'주식 분석 시작' 버튼을 눌러 AI 스캔을 시작하세요." },
   { id: 6, text: "설정한 매도 시점에 가장 적합한 저평가 추천 종목과 상세 근거를 확인하세요." }
 ];
 
@@ -155,6 +174,10 @@ export default function App() {
   
   const [market, setMarket] = useState<'KOREA' | 'US'>('KOREA');
   const [selectedCategoryId, setSelectedCategoryId] = useState('');
+  const [targetStock, setTargetStock] = useState('');
+  const [investmentStyle, setInvestmentStyle] = useState<'CONSERVATIVE' | 'MODERATE' | 'AGGRESSIVE'>('MODERATE');
+  const [investmentPurpose, setInvestmentPurpose] = useState<'GROWTH' | 'DIVIDEND' | 'VALUE'>('GROWTH');
+  const [useMacroAnalysis, setUseMacroAnalysis] = useState(true);
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   
   const [sellYear, setSellYear] = useState<string>(new Date().getFullYear().toString());
@@ -218,8 +241,8 @@ export default function App() {
       return;
     }
 
-    if (!selectedCategoryId) {
-      setError('분석할 테마 섹터를 선택해주세요.');
+    if (!selectedCategoryId && !targetStock) {
+      setError('분석할 테마 섹터를 선택하거나 특정 종목명을 입력해주세요.');
       return;
     }
 
@@ -236,7 +259,11 @@ export default function App() {
         오늘 날짜: ${today}
         선택된 시장: ${market === 'KOREA' ? '국내(KOSPI/KOSDAQ)' : '미국(NYSE/NASDAQ)'}
         선택된 섹터: ${currentCategory?.label}
+        ${targetStock ? `분석 대상 종목: ${targetStock}` : '분석 대상: 해당 섹터 내 최적의 저평가주 발굴'}
         희망 매도 시기: ${sellYear}년 ${sellMonth}월
+        투자 성향: ${investmentStyle === 'CONSERVATIVE' ? '보수적(원금보존 중시)' : investmentStyle === 'MODERATE' ? '중립적(수익/위험 균형)' : '공격적(고수익 추구)'}
+        투자 목적: ${investmentPurpose === 'GROWTH' ? '성장주(시세차익)' : investmentPurpose === 'DIVIDEND' ? '배당주(현금흐름)' : '가치주(저평가 해소)'}
+        거시 경제 지표 반영: ${useMacroAnalysis ? '필수(금리, 환율, 유가 등 고려)' : '선택적'}
 
         당신은 금융권 최고 수준의 추론 능력을 가진 '금융 특화 혁신 AI 리서처'입니다. 
         모든 데이터는 철저히 팩트와 최신 시장 동향에 기반하여 심도 있게 분석하십시오. 
@@ -244,8 +271,10 @@ export default function App() {
 
         [분석 지침]
         1. 안내된 '오늘 날짜'를 기준으로 실시간 시장 데이터를 반영하여 분석하십시오.
-        2. 해당 섹터 내에서 현재 실질 가치 대비 현저히 '저평가'된 종목을 타겟팅하십시오.
-        3. 단순 정보 전달이 아닌, 고도의 금융 추론을 통해 미래 가치를 산출하십시오.
+        2. ${targetStock ? `사용자가 입력한 [${targetStock}] 종목을 우선적으로 심층 분석하십시오. 만약 해당 종목이 입력되지 않았다면` : ''} 해당 섹터 내에서 현재 실질 가치 대비 현저히 '저평가'된 종목을 타겟팅하십시오.
+        3. 사용자의 [투자 성향]에 맞춰 매수 비중 조절 가이드와 적정 손절가(Stop-loss)를 반드시 포함하십시오.
+        4. [거시 경제 지표]가 '필수'인 경우, 현재의 금리 추세나 인플레이션 상황이 해당 주가에 미칠 영향을 논리적으로 설명하십시오.
+        5. 단순 정보 전달이 아닌, 고도의 금융 추론을 통해 미래 가치를 산출하십시오.
 
         [출력 스타일 규칙 (필수)]
         아래의 커스텀 태그를 사용하여 텍스트에 스타일을 입히십시오:
@@ -568,6 +597,78 @@ export default function App() {
                 </div>
               </div>
 
+              <div className="p-5 bg-slate-950/50 rounded-2xl border border-white/5 shadow-inner">
+                <label className="block text-[10px] uppercase font-black text-slate-500 tracking-[0.15em] mb-4">분석할 주식</label>
+                <input 
+                  type="text"
+                  placeholder="예: 삼성전자, 엔비디아..."
+                  className="w-full bg-slate-900/50 border border-white/5 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-700"
+                  value={targetStock}
+                  onChange={(e) => setTargetStock(e.target.value)}
+                />
+              </div>
+
+              <div className="p-5 bg-slate-950/50 rounded-2xl border border-white/5 shadow-inner">
+                <label className="block text-[10px] uppercase font-black text-slate-500 tracking-[0.15em] mb-4">투자 성향 및 목적</label>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[9px] text-slate-600 font-bold mb-2 uppercase tracking-tighter">Risk Profile</p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { id: 'CONSERVATIVE', label: '안정', color: 'text-emerald-500' },
+                        { id: 'MODERATE', label: '중립', color: 'text-blue-500' },
+                        { id: 'AGGRESSIVE', label: '공격', color: 'text-rose-500' }
+                      ].map((s) => (
+                        <button
+                          key={s.id}
+                          onClick={() => setInvestmentStyle(s.id as any)}
+                          className={`py-2 rounded-lg text-xs font-bold transition-all border ${
+                            investmentStyle === s.id 
+                              ? 'bg-white/5 border-white/20 text-white' 
+                              : 'border-transparent text-slate-500 hover:text-slate-300'
+                          }`}
+                        >
+                          <span className={investmentStyle === s.id ? s.color : ''}>{s.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <p className="text-[9px] text-slate-600 font-bold mb-2 uppercase tracking-tighter">Investment Objective</p>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { id: 'GROWTH', label: '차익' },
+                        { id: 'DIVIDEND', label: '배당' },
+                        { id: 'VALUE', label: '가치' }
+                      ].map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={() => setInvestmentPurpose(p.id as any)}
+                          className={`py-2 rounded-lg text-xs font-bold transition-all border ${
+                            investmentPurpose === p.id 
+                              ? 'bg-blue-600 border-blue-500 text-white' 
+                              : 'bg-slate-900 border-transparent text-slate-500 hover:text-slate-300'
+                          }`}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                    <span className="text-[9px] text-slate-500 font-bold uppercase">Macro Engine 4.0</span>
+                    <button 
+                      onClick={() => setUseMacroAnalysis(!useMacroAnalysis)}
+                      className={`w-10 h-5 rounded-full relative transition-all ${useMacroAnalysis ? 'bg-blue-600' : 'bg-slate-800'}`}
+                    >
+                      <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${useMacroAnalysis ? 'left-6' : 'left-1'}`}></div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="p-4 bg-slate-800/50 rounded-xl border border-slate-700/50" ref={dropdownRef}>
                 <label className="block text-[10px] uppercase font-bold text-slate-500 tracking-widest mb-3">유망 섹터 테마 선택</label>
                 <div className="relative">
@@ -659,7 +760,8 @@ export default function App() {
                 </>
               ) : (
                 <>
-                  오늘의 추천주 분석 시작
+                  <BarChart3 className="w-4 h-4" />
+                  주식 분석 시작
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </>
               )}
